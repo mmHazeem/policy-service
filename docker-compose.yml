@@ -1,0 +1,87 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: policy-db
+    environment:
+      POSTGRES_DB: insurance_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d insurance_db -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - monitor-net
+
+  policy-service:
+    build: .
+    container_name: policy-app
+    ports:
+      - "8081:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/insurance_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=root
+    depends_on:
+      postgres:
+        condition: service_healthy # Wait for the healthcheck to pass
+    restart: always
+    networks:
+      - monitor-net
+
+  redis:
+    image: redis:alpine
+    container_name: policy-cache
+    ports:
+      - "6379:6379"
+    networks:
+      - monitor-net
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: policy-broker
+    ports:
+      - "5672:5672"   # RabbitMQ Port
+      - "15672:15672" # Management UI Port
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - monitor-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      # by using an absolute path or ensure the file is relative to the compose file
+      # Also, sometimes adding :ro (read-only) helps bypass permission issues
+      - type: bind
+        source: ./prometheus.yml
+        target: /etc/prometheus/prometheus.yml
+        read_only: true
+    networks:
+      - monitor-net
+
+  Grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - "monitor-net"
+
+networks:
+  monitor-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
