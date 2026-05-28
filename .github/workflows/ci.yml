@@ -1,0 +1,29 @@
+name: Java CI with Maven
+
+on:
+  push:
+    branches: [ "main", "master" ] # Triggers when you push to main/master
+  pull_request:
+    branches: [ "main", "master" ] # Triggers when you open a Pull Request
+
+jobs:
+  build:
+    # The type of virtual machine the host will run on
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Clone your code from GitHub onto the virtual machine
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Install Java 21 on the virtual machine
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin' # A reliable, open-source Java distribution
+          cache: maven            # Caches your dependencies so future builds are faster
+
+      # Step 3: Compile the code and run your JUnit tests
+      - name: Build and Test with Maven
+        run: mvn -B clean verify
