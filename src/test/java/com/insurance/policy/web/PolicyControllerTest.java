@@ -7,53 +7,119 @@ import org.junit.jupiter.api.Test;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(PolicyController.class)
-@Import(SecurityConfig.class)
+@WebMvcTest(
+        value = PolicyController.class,
+        excludeFilters = @ComponentScan.Filter(
+                type = FilterType.ASSIGNABLE_TYPE,
+                // Exclude the real SecurityConfig (would add JWT filter to chain)
+                // Exclude JwtAuthenticationFilter (Filter bean picked up by @WebMvcTest)
+                classes = {SecurityConfig.class, JwtAuthenticationFilter.class}
+        )
+)
+@Import(PolicyControllerTest.TestSecurityConfig.class)
 class PolicyControllerTest {
+    @TestConfiguration
+    static class TestSecurityConfig {
 
-    @Autowired
-    private MockMvc mockMvc;
+        @Bean
+        public SecurityFilterChain testFilterChain(HttpSecurity http) throws Exception {
+            return http
+                    .csrf(AbstractHttpConfigurer::disable)
+                    .sessionManagement(s ->
+                            s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                    .authorizeHttpRequests(auth -> auth
+                            .requestMatchers("/api/v1/auth/**").permitAll()
+                            .anyRequest().authenticated()
+                    )
+                    .exceptionHandling(ex -> ex
+                            .authenticationEntryPoint((request, response, authException) ->
+                                    response.sendError(401, "Unauthorized"))
+                    )
+                    .build();
+        }
+    }
 
-    @MockitoBean
-    private PolicyService policyService;
+    @Autowired private MockMvc mockMvc;
 
-    @MockitoBean
-    private RabbitTemplate rabbitTemplate;
+    // Only the controller's direct dependencies — no security mocks needed
+    @MockitoBean private PolicyService  policyService;
+    @MockitoBean private RabbitTemplate rabbitTemplate;
 
-    @MockitoBean
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
-
-    @MockitoBean
-    private UserDetailsService userDetailsService;
-
+    // Valid request body
+    private static final String VALID_BODY = """
+            {
+                "policyNumber": "POL-123",
+                "policyHolder": "John Doe",
+                "coverageAmount": 5000,
+                "startDate": "2026-04-20"
+            }
+            """;
     @Test
     @WithMockUser(username = "admin")
     void shouldReturn202WhenPolicyRequestIsValid() throws Exception {
-        // Controller sends to RabbitMQ and returns 202 Accepted
+        mockMvc.perform(post("/api/v1/policies")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(VALID_BODY))
+                .andExpect(status().isAccepted()); // 202 — controller publishes to RabbitMQ
+    }
+
+    @Test
+    @WithMockUser(username = "admin")
+    void shouldReturn400WhenPolicyNumberIsBlank() throws Exception {
+        mockMvc.perform(post("/api/v1/policies")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "policyNumber": "",
+                                    "policyHolder": "John Doe",
+                                    "coverageAmount": 5000,
+                                    "startDate": "2026-04-20"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Validation Failed"))
+                .andExpect(jsonPath("$.errors.policyNumber").exists());
+    }
+
+    @Test
+    @WithMockUser(username = "admin")
+    void shouldReturn400WhenPolicyHolderIsBlank() throws Exception {
         mockMvc.perform(post("/api/v1/policies")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                     "policyNumber": "POL-123",
-                                    "policyHolder": "John Doe",
+                                    "policyHolder": "",
                                     "coverageAmount": 5000,
                                     "startDate": "2026-04-20"
                                 }
                                 """))
-                .andExpect(status().isAccepted());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Validation Failed"))
+                .andExpect(jsonPath("$.errors.policyHolder").exists());
     }
 
     @Test
@@ -70,11 +136,39 @@ class PolicyControllerTest {
                                     "startDate": "2026-04-20"
                                 }
                                 """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.coverageAmount").exists());
+    }
+
+    @Test
+    @WithMockUser(username = "admin")
+    void shouldReturn400WhenCoverageAmountIsMissing() throws Exception {
+        mockMvc.perform(post("/api/v1/policies")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "policyNumber": "POL-123",
+                                    "policyHolder": "John Doe",
+                                    "startDate": "2026-04-20"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.coverageAmount").exists());
+    }
+
+    @Test
+    @WithMockUser(username = "admin")
+    void shouldReturn400WhenRequestBodyIsEmpty() throws Exception {
+        mockMvc.perform(post("/api/v1/policies")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    void shouldReturn401WhenUnauthenticated() throws Exception {
+    void shouldReturn401WhenGettingPoliciesWithoutToken() throws Exception {
         mockMvc.perform(get("/api/v1/policies"))
                 .andExpect(status().isUnauthorized());
     }
