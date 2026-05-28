@@ -46,11 +46,32 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleAllExceptions(Exception ex) {
         log.error("Unexpected error occurred: ", ex);
         ApiError apiError = ApiError.builder()
-                .message(ex.getMessage())
+                .message("An internal error occurred")
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .timestamp(LocalDateTime.now())
                 .build();
 
         return new ResponseEntity<>(apiError, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+
+    @ExceptionHandler(PolicyAlreadyExistsException.class)
+    public ResponseEntity<ApiError> handleAlreadyExists(PolicyAlreadyExistsException ex) {
+        ApiError response = ApiError.builder()
+                .message(ex.getMessage())
+                .status(HttpStatus.CONFLICT.value())
+                .timestamp(LocalDateTime.now())
+                .build();
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException ex) {
+        ApiError response = ApiError.builder()
+                .message(ex.getMessage())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .timestamp(LocalDateTime.now())
+                .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
 }

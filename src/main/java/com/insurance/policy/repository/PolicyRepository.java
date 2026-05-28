@@ -8,6 +8,5 @@ import java.util.Optional;
 
 @Repository
 public interface PolicyRepository extends JpaRepository<Policy, UUID> {
-    // A custom query to find policies by their unique number
     Optional<Policy> findByPolicyNumber(String policyNumber);
 }

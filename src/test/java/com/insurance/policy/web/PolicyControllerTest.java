@@ -1,28 +1,22 @@
 package com.insurance.policy.web;
 
+import com.insurance.policy.config.JwtAuthenticationFilter;
 import com.insurance.policy.config.SecurityConfig;
-import com.insurance.policy.dtos.PolicyRequest;
-import com.insurance.policy.dtos.PolicyResponse;
 import com.insurance.policy.policy_service.PolicyService;
 import org.junit.jupiter.api.Test;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.UUID;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(PolicyController.class)
@@ -35,32 +29,48 @@ class PolicyControllerTest {
     @MockitoBean
     private PolicyService policyService;
 
+    @MockitoBean
+    private RabbitTemplate rabbitTemplate;
+
+    @MockitoBean
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @MockitoBean
+    private UserDetailsService userDetailsService;
+
     @Test
     @WithMockUser(username = "admin")
-    void shouldCreatePolicySuccessfully() throws Exception {
-        // Arrange
-        PolicyResponse response = new PolicyResponse(
-                UUID.randomUUID(), "POL-123", "John Doe",
-                new BigDecimal("5000"), new BigDecimal("25"),
-                LocalDate.now(), "CREATED");
-
-        when(policyService.createPolicy(any(PolicyRequest.class))).thenReturn(response);
-
-        // Act & Assert
+    void shouldReturn202WhenPolicyRequestIsValid() throws Exception {
+        // Controller sends to RabbitMQ and returns 202 Accepted
         mockMvc.perform(post("/api/v1/policies")
-                        .with(csrf()) // Spring Security usually needs this in tests
-                        .contentType(String.valueOf(MediaType.APPLICATION_JSON))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                    {
-                        "policyNumber": "POL-123",
-                        "policyHolder": "John Doe",
-                        "coverageAmount": 5000,
-                        "startDate": "2026-04-20"
-                    }
-                """))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.policyNumber").value("POL-123"))
-                .andExpect(jsonPath("$.premiumAmount").value(25.0));
+                                {
+                                    "policyNumber": "POL-123",
+                                    "policyHolder": "John Doe",
+                                    "coverageAmount": 5000,
+                                    "startDate": "2026-04-20"
+                                }
+                                """))
+                .andExpect(status().isAccepted());
+    }
+
+    @Test
+    @WithMockUser(username = "admin")
+    void shouldReturn400WhenCoverageAmountIsBelowMinimum() throws Exception {
+        mockMvc.perform(post("/api/v1/policies")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                    "policyNumber": "POL-123",
+                                    "policyHolder": "John Doe",
+                                    "coverageAmount": 500,
+                                    "startDate": "2026-04-20"
+                                }
+                                """))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -71,7 +81,7 @@ class PolicyControllerTest {
 
     @Test
     @WithMockUser(username = "admin")
-    void shouldGetPolicySuccessfully() throws Exception {
+    void shouldReturn200WhenListingPolicies() throws Exception {
         mockMvc.perform(get("/api/v1/policies"))
                 .andExpect(status().isOk());
     }
