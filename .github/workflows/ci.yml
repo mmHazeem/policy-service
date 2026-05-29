@@ -11,6 +11,19 @@ jobs:
     # The type of virtual machine the host will run on
     runs-on: ubuntu-latest
 
+    services:
+      rabbitmq:
+        image: rabbitmq:3-management
+        ports:
+          - 5672:5672
+          - 15672:15672
+        # Wait until RabbitMQ is completely healthy before starting the Java build
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       # Step 1: Clone your code from GitHub onto the virtual machine
       - name: Checkout code
