@@ -22,4 +22,4 @@ jobs:
           cache: maven
 
       - name: Build and Test with Maven
-        run: mvn -B clean verify
+        run: mvn -B clean verify -Dsurefire.exitTimeout=10
