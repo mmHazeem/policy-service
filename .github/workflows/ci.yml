@@ -37,6 +37,10 @@ jobs:
           distribution: 'temurin' # A reliable, open-source Java distribution
           cache: maven            # Caches your dependencies so future builds are faster
 
-      # Step 3: Compile the code and run your JUnit tests
       - name: Build and Test with Maven
+        env:
+          SPRING_RABBITMQ_HOST: localhost
+          SPRING_RABBITMQ_PORT: 5672
+          SPRING_RABBITMQ_USERNAME: guest
+          SPRING_RABBITMQ_PASSWORD: guest
         run: mvn -B clean verify
