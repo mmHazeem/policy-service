@@ -2,45 +2,24 @@ name: Java CI with Maven
 
 on:
   push:
-    branches: [ "main", "master" ] # Triggers when you push to main/master
+    branches: [ "main", "master" ]
   pull_request:
-    branches: [ "main", "master" ] # Triggers when you open a Pull Request
+    branches: [ "main", "master" ]
 
 jobs:
   build:
-    # The type of virtual machine the host will run on
     runs-on: ubuntu-latest
 
-    services:
-      rabbitmq:
-        image: rabbitmq:3-management-alpine
-        ports:
-          - 5672:5672
-          - 15672:15672
-        # Wait until RabbitMQ is completely healthy before starting the Java build
-        options: >-
-          --health-cmd "rabbitmq-diagnostics -q ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
-      # Step 1: Clone your code from GitHub onto the virtual machine
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Step 2: Install Java 21 on the virtual machine
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           java-version: '21'
-          distribution: 'temurin' # A reliable, open-source Java distribution
-          cache: maven            # Caches your dependencies so future builds are faster
+          distribution: 'temurin'
+          cache: maven
 
       - name: Build and Test with Maven
-        env:
-          SPRING_RABBITMQ_HOST: localhost
-          SPRING_RABBITMQ_PORT: 5672
-          SPRING_RABBITMQ_USERNAME: guest
-          SPRING_RABBITMQ_PASSWORD: guest
         run: mvn -B clean verify

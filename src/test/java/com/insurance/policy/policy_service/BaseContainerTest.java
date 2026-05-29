@@ -33,6 +33,8 @@ public abstract class BaseContainerTest {
         // RabbitMQ
         registry.add("spring.rabbitmq.host", rabbit::getHost);
         registry.add("spring.rabbitmq.port", rabbit::getAmqpPort);
+        registry.add("spring.rabbitmq.username", rabbit::getAdminUsername);
+        registry.add("spring.rabbitmq.password", rabbit::getAdminPassword);
 
         // Redis
         registry.add("spring.data.redis.host", redis::getHost);
