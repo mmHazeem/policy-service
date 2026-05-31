@@ -1,4 +1,4 @@
-package com.insurance.policy.policy_service;
+package com.insurance.policy;
 
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;

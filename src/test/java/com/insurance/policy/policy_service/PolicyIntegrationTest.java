@@ -1,5 +1,6 @@
 package com.insurance.policy.policy_service;
 
+import com.insurance.policy.BaseIntegrationTest;
 import com.insurance.policy.Listener.RabbitMQConfig;
 import com.insurance.policy.dtos.PolicyRequest;
 import com.insurance.policy.dtos.PolicyResponse;
@@ -29,7 +30,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class PolicyIntegrationTest extends BaseIntegrationTest{
+class PolicyIntegrationTest extends BaseIntegrationTest {
 
     // Simulate real http calls
     @Autowired

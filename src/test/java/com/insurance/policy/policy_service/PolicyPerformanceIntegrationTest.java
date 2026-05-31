@@ -1,5 +1,6 @@
 package com.insurance.policy.policy_service;
 
+import com.insurance.policy.BaseIntegrationTest;
 import com.insurance.policy.domain.Policy;
 import com.insurance.policy.dtos.PolicyRequest;
 import com.insurance.policy.repository.PolicyRepository;
@@ -39,7 +40,6 @@ class PolicyPerformanceIntegrationTest extends BaseIntegrationTest {
     @BeforeEach
     void setUp() {
         // to forces the exchange/queue to be created before the test starts
-        rabbitAdmin.initialize();
         repository.deleteAll();
         userRepository.deleteAll();
 
@@ -65,9 +65,9 @@ class PolicyPerformanceIntegrationTest extends BaseIntegrationTest {
         // 3. WAIT: Use Awaitility to wait for RabbitMQ to process and Save to DB
         Awaitility.await()
                 .atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofMillis(500))
                 .untilAsserted(() -> {
-                    Optional<Policy> saved = repository.findByPolicyNumber("ASYNC-1");
-                    assertThat(saved).isPresent();
+                    assertThat(repository.findByPolicyNumber("ASYNC-1")).isPresent();
                 });
     }
 

@@ -1,4 +1,4 @@
-package com.insurance.policy.policy_service;
+package com.insurance.policy;
 
 import com.insurance.policy.dtos.AuthRequest;
 import com.insurance.policy.dtos.AuthResponse;
