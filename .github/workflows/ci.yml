@@ -26,13 +26,28 @@ jobs:
 
       - name: Build and Test with Maven
         env:
-          # Testcontainers uses this to skip the cloud lookup for Docker host
           TESTCONTAINERS_CHECKS_DISABLE: "true"
-          # JWT secret — must match src/test/resources/application.yaml
           JWT_SECRET: "404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970"
-        run: ./mvnw verify -B --no-transfer-progress
+        # -e  = print full exception stack traces so errors are visible in the log
+        # -fae = fail at end (run all modules, collect all errors)
+        run: ./mvnw verify -B -e -fae --no-transfer-progress
 
-      - name: Upload Surefire reports on failure
+      # Print every surefire report inline so the error is visible
+      # directly in the Actions log without downloading anything
+      - name: Print test failure details
+        if: failure()
+        run: |
+          echo "====== SUREFIRE REPORTS ======"
+          find target/surefire-reports -name "*.txt" 2>/dev/null | while read f; do
+            echo ""
+            echo "--- $f ---"
+            cat "$f"
+          done
+          echo ""
+          echo "====== COMPILATION ERRORS (if any) ======"
+          find . -name "*.class" -newer pom.xml 2>/dev/null | head -5 || true
+
+      - name: Upload Surefire reports
         if: failure()
         uses: actions/upload-artifact@v4
         with:
