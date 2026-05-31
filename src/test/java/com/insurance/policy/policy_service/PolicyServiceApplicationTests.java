@@ -1,5 +1,6 @@
 package com.insurance.policy.policy_service;
 
+import com.insurance.policy.BaseContainerTest;
 import com.insurance.policy.config.JwtService;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
