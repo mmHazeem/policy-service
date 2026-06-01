@@ -1,7 +1,6 @@
 package com.insurance.policy.policy_service;
 
 import com.insurance.policy.BaseIntegrationTest;
-import com.insurance.policy.domain.Policy;
 import com.insurance.policy.dtos.PolicyRequest;
 import com.insurance.policy.repository.PolicyRepository;
 import com.insurance.policy.repository.UserRepository;
@@ -16,17 +15,43 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.containers.RabbitMQContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDate;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class PolicyPerformanceIntegrationTest extends BaseIntegrationTest {
+
+    @Container
+    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15")
+            .withDatabaseName("policy_db")
+            .withUsername("policy_user")
+            .withPassword("policy_password");
+
+    @Container
+    static RabbitMQContainer rabbitmq = new RabbitMQContainer("rabbitmq:3.12-management");
+
+    @DynamicPropertySource
+    static void dynamicProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", postgres::getJdbcUrl);
+        registry.add("spring.datasource.username", postgres::getUsername);
+        registry.add("spring.datasource.password", postgres::getPassword);
+        registry.add("spring.rabbitmq.host", rabbitmq::getHost);
+        registry.add("spring.rabbitmq.port", rabbitmq::getAmqpPort);
+        registry.add("spring.rabbitmq.username", rabbitmq::getAdminUsername);
+        registry.add("spring.rabbitmq.password", rabbitmq::getAdminPassword);
+    }
 
     @Autowired
     private TestRestTemplate restTemplate;
@@ -34,18 +59,20 @@ class PolicyPerformanceIntegrationTest extends BaseIntegrationTest {
     private RabbitAdmin rabbitAdmin;
     @Autowired
     private PolicyRepository repository;
-    @Autowired private UserRepository userRepository;
+    @Autowired
+    private UserRepository userRepository;
     private String jwtToken;
 
     @BeforeEach
     void setUp() {
-        // to forces the exchange/queue to be created before the test starts
+        // Clean up data before each test
         repository.deleteAll();
         userRepository.deleteAll();
 
         // Register a fresh user per test so tests are fully isolated
         jwtToken = obtainToken("it-user-" + UUID.randomUUID());
     }
+
     @Test
     void shouldHandleAsyncCreationAndCaching() {
         PolicyRequest request = new PolicyRequest(
@@ -70,5 +97,4 @@ class PolicyPerformanceIntegrationTest extends BaseIntegrationTest {
                     assertThat(repository.findByPolicyNumber("ASYNC-1")).isPresent();
                 });
     }
-
 }
