@@ -1,11 +1,15 @@
 package com.insurance.policy.policy_service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.insurance.policy.domain.OutboxEvent;
 import com.insurance.policy.domain.Policy;
 import com.insurance.policy.dtos.PolicyRequest;
 import com.insurance.policy.dtos.PolicyResponse;
 import com.insurance.policy.exception.PolicyAlreadyExistsException;
 import com.insurance.policy.exception.PolicyNotFoundException;
 import com.insurance.policy.mapper.PolicyMapper;
+import com.insurance.policy.repository.OutboxRepository;
 import com.insurance.policy.repository.PolicyRepository;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -13,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
@@ -26,15 +31,42 @@ public class PolicyService {
     private final PolicyRepository repository;
     private final PolicyMapper mapper;
     private final Counter policyCreationCounter;
+    private final OutboxRepository outboxRepository;
+    private final ObjectMapper objectMapper;
 
-    public PolicyService(PolicyRepository repository, PolicyMapper mapper, MeterRegistry registry) {
+    public PolicyService(PolicyRepository repository, PolicyMapper mapper, MeterRegistry registry,
+                         OutboxRepository outboxRepository, ObjectMapper objectMapper) {
         this.repository = repository;
         this.mapper = mapper;
+        this.outboxRepository = outboxRepository;
+        this.objectMapper = objectMapper;
 
         this.policyCreationCounter = Counter.builder("insurance.policies.created")
                 .description("Total number of insurance policies created")
                 .tag("type", "standard")
                 .register(registry);
+    }
+
+    @Transactional
+    public void createPolicyAsync(PolicyRequest request) {
+        if (repository.findByPolicyNumber(request.policyNumber()).isPresent()) {
+            throw new PolicyAlreadyExistsException(
+                    "Policy with number '" + request.policyNumber() + "' already exists");
+        }
+        try {
+            String payload = objectMapper.writeValueAsString(request);
+            OutboxEvent event = OutboxEvent.builder()
+                    .aggregateType("POLICY")
+                    .aggregateId(request.policyNumber())
+                    .eventType("POLICY_CREATED")
+                    .payload(payload)
+                    .status(OutboxEvent.OutboxStatus.PENDING)
+                    .build();
+            outboxRepository.save(event);
+            log.info("Outbox event saved for policy number: {}", request.policyNumber());
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Failed to serialize policy request", e);
+        }
     }
 
     // This method only runs if the ID is NOT in Redis

@@ -1,10 +1,14 @@
 package com.insurance.policy.policy_service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.insurance.policy.domain.OutboxEvent;
 import com.insurance.policy.domain.Policy;
 import com.insurance.policy.dtos.PolicyRequest;
 import com.insurance.policy.dtos.PolicyResponse;
 import com.insurance.policy.exception.PolicyAlreadyExistsException;
 import com.insurance.policy.mapper.PolicyMapper;
+import com.insurance.policy.repository.OutboxRepository;
 import com.insurance.policy.repository.PolicyRepository;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -33,19 +37,24 @@ class PolicyServiceTest {
 
     @Mock private PolicyRepository repository;
     @Mock private PolicyMapper mapper;
+    @Mock private OutboxRepository outboxRepository;
+    @Spy  private ObjectMapper objectMapper = new ObjectMapper();
     @Spy  private MeterRegistry registry = new SimpleMeterRegistry();
 
     private PolicyService policyService;
 
     @Captor
     private ArgumentCaptor<Policy> policyCaptor;
+    @Captor
+    private ArgumentCaptor<OutboxEvent> outboxCaptor;
 
     private static final PolicyRequest VALID_REQUEST =
             new PolicyRequest("J-100", "Jan Max", new BigDecimal("1000"), LocalDate.now());
 
     @BeforeEach
     void setUp() {
-        policyService = new PolicyService(repository, mapper, registry);
+        objectMapper.registerModule(new JavaTimeModule());
+        policyService = new PolicyService(repository, mapper, registry, outboxRepository, objectMapper);
     }
 
     @Test
@@ -97,6 +106,31 @@ class PolicyServiceTest {
 
         double count = registry.get("insurance.policies.created").counter().count();
         assertEquals(1.0, count);
+    }
+
+    @Test
+    void shouldSaveOutboxEventWhenCreatePolicyAsyncIsCalled() {
+        when(repository.findByPolicyNumber(VALID_REQUEST.policyNumber())).thenReturn(Optional.empty());
+
+        policyService.createPolicyAsync(VALID_REQUEST);
+
+        verify(outboxRepository).save(outboxCaptor.capture());
+        OutboxEvent saved = outboxCaptor.getValue();
+        assertEquals("POLICY", saved.getAggregateType());
+        assertEquals(VALID_REQUEST.policyNumber(), saved.getAggregateId());
+        assertEquals("POLICY_CREATED", saved.getEventType());
+        assertEquals(OutboxEvent.OutboxStatus.PENDING, saved.getStatus());
+    }
+
+    @Test
+    void shouldThrowWhenCreatePolicyAsyncWithDuplicatePolicyNumber() {
+        when(repository.findByPolicyNumber(VALID_REQUEST.policyNumber()))
+                .thenReturn(Optional.of(new Policy()));
+
+        assertThrows(PolicyAlreadyExistsException.class,
+                () -> policyService.createPolicyAsync(VALID_REQUEST));
+
+        verify(outboxRepository, never()).save(any());
     }
 
     @Test

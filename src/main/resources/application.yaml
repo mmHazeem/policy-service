@@ -36,6 +36,8 @@ logging:
     com.insurance.policy: DEBUG
 
 app:
+  outbox:
+    poll-interval: 5000
   security:
     jwt:
       secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}

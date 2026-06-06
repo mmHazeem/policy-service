@@ -4,7 +4,6 @@ import com.insurance.policy.config.JwtAuthenticationFilter;
 import com.insurance.policy.config.SecurityConfig;
 import com.insurance.policy.policy_service.PolicyService;
 import org.junit.jupiter.api.Test;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -61,9 +60,7 @@ class PolicyControllerTest {
 
     @Autowired private MockMvc mockMvc;
 
-    // Only the controller's direct dependencies — no security mocks needed
-    @MockitoBean private PolicyService  policyService;
-    @MockitoBean private RabbitTemplate rabbitTemplate;
+    @MockitoBean private PolicyService policyService;
 
     // Valid request body
     private static final String VALID_BODY = """

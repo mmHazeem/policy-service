@@ -5,6 +5,7 @@ import com.insurance.policy.Listener.RabbitMQConfig;
 import com.insurance.policy.dtos.PolicyRequest;
 import com.insurance.policy.dtos.PolicyResponse;
 import com.insurance.policy.exception.ApiError;
+import com.insurance.policy.repository.OutboxRepository;
 import com.insurance.policy.repository.PolicyRepository;
 import com.insurance.policy.repository.UserRepository;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -43,7 +44,10 @@ class PolicyIntegrationTest extends BaseIntegrationTest {
     private RabbitAdmin rabbitAdmin;
     @Autowired
     private PolicyRepository repository;
-    @Autowired private UserRepository userRepository;
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private OutboxRepository outboxRepository;
 
     // Each test gets its own fresh token tied to a unique username
     private String jwtToken;
@@ -54,6 +58,7 @@ class PolicyIntegrationTest extends BaseIntegrationTest {
         rabbitAdmin.initialize();
         repository.deleteAll();
         userRepository.deleteAll();
+        outboxRepository.deleteAll();
 
         // Register a fresh user per test so tests are fully isolated
         jwtToken = obtainToken("it-user-" + UUID.randomUUID());
