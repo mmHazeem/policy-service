@@ -2,6 +2,7 @@ package com.insurance.policy.web;
 
 import com.insurance.policy.dtos.PolicyRequest;
 import com.insurance.policy.dtos.PolicyResponse;
+import com.insurance.policy.dtos.PolicyStatusRequest;
 import com.insurance.policy.policy_service.PolicyService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -11,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/policies")
@@ -30,5 +32,14 @@ public class PolicyController {
     @Operation(summary = "Get all policies")
     public List<PolicyResponse> list() {
         return policyService.getAllPolicies();
+    }
+
+    @PatchMapping("/{id}/status")
+    @Operation(summary = "Update policy status with enforced transitions: DRAFT → ACTIVE → CANCELLED")
+    public ResponseEntity<PolicyResponse> updateStatus(
+            @PathVariable UUID id,
+            @Valid @RequestBody PolicyStatusRequest request) {
+        PolicyResponse response = policyService.updatePolicyStatus(id, request);
+        return ResponseEntity.ok(response);
     }
 }

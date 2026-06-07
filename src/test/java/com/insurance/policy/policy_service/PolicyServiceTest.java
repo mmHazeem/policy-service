@@ -6,7 +6,10 @@ import com.insurance.policy.domain.OutboxEvent;
 import com.insurance.policy.domain.Policy;
 import com.insurance.policy.dtos.PolicyRequest;
 import com.insurance.policy.dtos.PolicyResponse;
+import com.insurance.policy.dtos.PolicyStatusRequest;
+import com.insurance.policy.exception.InvalidPolicyTransitionException;
 import com.insurance.policy.exception.PolicyAlreadyExistsException;
+import com.insurance.policy.exception.PolicyNotFoundException;
 import com.insurance.policy.mapper.PolicyMapper;
 import com.insurance.policy.repository.OutboxRepository;
 import com.insurance.policy.repository.PolicyRepository;
@@ -131,6 +134,48 @@ class PolicyServiceTest {
                 () -> policyService.createPolicyAsync(VALID_REQUEST));
 
         verify(outboxRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldUpdatePolicyStatusSuccessfully() {
+        Policy existingPolicy = new Policy();
+        existingPolicy.setId(UUID.randomUUID());
+        existingPolicy.setPolicyNumber("POL-001");
+        existingPolicy.setStatus(Policy.PolicyStatus.DRAFT);
+
+        when(repository.findById(existingPolicy.getId())).thenReturn(Optional.of(existingPolicy));
+        when(repository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(mapper.toResponse(any())).thenReturn(new PolicyResponse(
+                existingPolicy.getId(), "POL-001", "John", null, null, null, "ACTIVE"));
+
+        PolicyResponse result = policyService.updatePolicyStatus(
+                existingPolicy.getId(), new PolicyStatusRequest(Policy.PolicyStatus.ACTIVE));
+
+        assertEquals("ACTIVE", result.status());
+        assertEquals(Policy.PolicyStatus.ACTIVE, existingPolicy.getStatus());
+    }
+
+    @Test
+    void shouldThrowWhenTransitionIsInvalid() {
+        Policy existingPolicy = new Policy();
+        existingPolicy.setId(UUID.randomUUID());
+        existingPolicy.setStatus(Policy.PolicyStatus.DRAFT);
+
+        when(repository.findById(existingPolicy.getId())).thenReturn(Optional.of(existingPolicy));
+
+        assertThrows(InvalidPolicyTransitionException.class,
+                () -> policyService.updatePolicyStatus(
+                        existingPolicy.getId(), new PolicyStatusRequest(Policy.PolicyStatus.CANCELLED)));
+    }
+
+    @Test
+    void shouldThrowWhenPolicyNotFoundForStatusUpdate() {
+        UUID id = UUID.randomUUID();
+        when(repository.findById(id)).thenReturn(Optional.empty());
+
+        assertThrows(PolicyNotFoundException.class,
+                () -> policyService.updatePolicyStatus(
+                        id, new PolicyStatusRequest(Policy.PolicyStatus.ACTIVE)));
     }
 
     @Test

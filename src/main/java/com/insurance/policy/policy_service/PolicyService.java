@@ -6,6 +6,8 @@ import com.insurance.policy.domain.OutboxEvent;
 import com.insurance.policy.domain.Policy;
 import com.insurance.policy.dtos.PolicyRequest;
 import com.insurance.policy.dtos.PolicyResponse;
+import com.insurance.policy.dtos.PolicyStatusRequest;
+import com.insurance.policy.exception.InvalidPolicyTransitionException;
 import com.insurance.policy.exception.PolicyAlreadyExistsException;
 import com.insurance.policy.exception.PolicyNotFoundException;
 import com.insurance.policy.mapper.PolicyMapper;
@@ -75,6 +77,21 @@ public class PolicyService {
         return repository.findById(id)
                 .map(mapper::toResponse)
                 .orElseThrow(() -> new PolicyNotFoundException(id.toString()));
+    }
+
+    @CacheEvict(value = "policies", allEntries = true)
+    public PolicyResponse updatePolicyStatus(UUID id, PolicyStatusRequest request) {
+        Policy policy = repository.findById(id)
+                .orElseThrow(() -> new PolicyNotFoundException(id.toString()));
+
+        if (!policy.getStatus().canTransitionTo(request.status())) {
+            throw new InvalidPolicyTransitionException(policy.getStatus(), request.status());
+        }
+
+        policy.setStatus(request.status());
+        Policy saved = repository.save(policy);
+        log.info("Policy {} status updated from {} to {}", id, policy.getStatus(), request.status());
+        return mapper.toResponse(saved);
     }
 
     @CacheEvict(value = "policies", allEntries = true)

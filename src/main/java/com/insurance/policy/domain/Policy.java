@@ -38,6 +38,14 @@ public class Policy {
     private PolicyStatus status;
 
     public enum PolicyStatus {
-        DRAFT, ACTIVE, CANCELLED
+        DRAFT, ACTIVE, CANCELLED;
+
+        public boolean canTransitionTo(PolicyStatus target) {
+            return switch (this) {
+                case DRAFT -> target == ACTIVE;
+                case ACTIVE -> target == CANCELLED;
+                case CANCELLED -> false;
+            };
+        }
     }
 }
