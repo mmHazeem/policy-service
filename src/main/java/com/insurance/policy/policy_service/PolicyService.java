@@ -22,6 +22,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
+import com.insurance.policy.dtos.PageResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -116,8 +120,9 @@ public class PolicyService {
         return mapper.toResponse(savedPolicy);
     }
 
-    public List<PolicyResponse> getAllPolicies() {
-        return mapper.toResponseList(repository.findAll());
+    public PageResponse<PolicyResponse> getAllPolicies(Pageable pageable) {
+        Page<Policy> page = repository.findAll(pageable);
+        return mapper.toResponsePage(page);
     }
 
     private BigDecimal calculatePremium(BigDecimal coverage) {

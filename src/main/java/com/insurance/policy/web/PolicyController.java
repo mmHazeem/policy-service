@@ -1,5 +1,6 @@
 package com.insurance.policy.web;
 
+import com.insurance.policy.dtos.PageResponse;
 import com.insurance.policy.dtos.PolicyRequest;
 import com.insurance.policy.dtos.PolicyResponse;
 import com.insurance.policy.dtos.PolicyStatusRequest;
@@ -8,10 +9,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -29,9 +31,9 @@ public class PolicyController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all policies")
-    public List<PolicyResponse> list() {
-        return policyService.getAllPolicies();
+    @Operation(summary = "Get all policies with pagination")
+    public PageResponse<PolicyResponse> list(@PageableDefault(size = 20) Pageable pageable) {
+        return policyService.getAllPolicies(pageable);
     }
 
     @PatchMapping("/{id}/status")
