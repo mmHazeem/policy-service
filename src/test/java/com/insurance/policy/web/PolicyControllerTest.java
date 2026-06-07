@@ -2,6 +2,8 @@ package com.insurance.policy.web;
 
 import com.insurance.policy.config.JwtAuthenticationFilter;
 import com.insurance.policy.config.SecurityConfig;
+import com.insurance.policy.dtos.PageResponse;
+import com.insurance.policy.dtos.PolicyResponse;
 import com.insurance.policy.policy_service.PolicyService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +13,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -20,6 +23,13 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -196,7 +206,20 @@ class PolicyControllerTest {
     @Test
     @WithMockUser(username = "admin")
     void shouldReturn200WhenListingPolicies() throws Exception {
+        PageResponse<PolicyResponse> page = new PageResponse<>(
+                List.of(new PolicyResponse(UUID.randomUUID(), "P-100", "John",
+                        new BigDecimal("1000"), new BigDecimal("5"),
+                        LocalDate.now(), "DRAFT")),
+                0, 20, 1, 1
+        );
+        when(policyService.getAllPolicies(any(Pageable.class))).thenReturn(page);
+
         mockMvc.perform(get("/api/v1/policies"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1));
     }
 }

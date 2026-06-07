@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.insurance.policy.domain.OutboxEvent;
 import com.insurance.policy.domain.Policy;
+import com.insurance.policy.dtos.PageResponse;
 import com.insurance.policy.dtos.PolicyRequest;
 import com.insurance.policy.dtos.PolicyResponse;
 import com.insurance.policy.dtos.PolicyStatusRequest;
@@ -26,6 +27,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -179,7 +185,7 @@ class PolicyServiceTest {
     }
 
     @Test
-    void shouldReturnAllPolicies() {
+    void shouldReturnAllPoliciesWithPagination() {
         Policy dummyPolicy = new Policy();
         dummyPolicy.setPolicyHolder("John Doe");
 
@@ -189,14 +195,23 @@ class PolicyServiceTest {
                 LocalDate.now(), "DRAFT"
         );
 
-        when(repository.findAll()).thenReturn(List.of(dummyPolicy));
-        when(mapper.toResponseList(Collections.singletonList(dummyPolicy)))
-                .thenReturn(List.of(dummyResponse));
+        Pageable pageable = PageRequest.of(0, 20);
+        Page<Policy> page = new PageImpl<>(List.of(dummyPolicy));
+        PageResponse<PolicyResponse> pageResponse = new PageResponse<>(
+                List.of(dummyResponse), 0, 20, 1, 1
+        );
 
-        List<PolicyResponse> result = policyService.getAllPolicies();
+        when(repository.findAll(pageable)).thenReturn(page);
+        when(mapper.toResponsePage(page)).thenReturn(pageResponse);
 
-        assertEquals(1, result.size());
-        assertEquals("John Doe", result.get(0).policyHolder());
-        verify(repository, times(1)).findAll();
+        var result = policyService.getAllPolicies(pageable);
+
+        assertEquals(1, result.data().size());
+        assertEquals("John Doe", result.data().get(0).policyHolder());
+        assertEquals(0, result.page());
+        assertEquals(20, result.size());
+        assertEquals(1, result.total());
+        assertEquals(1, result.totalPages());
+        verify(repository).findAll(pageable);
     }
 }

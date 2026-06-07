@@ -2,6 +2,7 @@ package com.insurance.policy.policy_service;
 
 import com.insurance.policy.BaseIntegrationTest;
 import com.insurance.policy.Listener.RabbitMQConfig;
+import com.insurance.policy.dtos.PageResponse;
 import com.insurance.policy.dtos.PolicyRequest;
 import com.insurance.policy.dtos.PolicyResponse;
 import com.insurance.policy.exception.ApiError;
@@ -18,6 +19,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -88,14 +90,15 @@ class PolicyIntegrationTest extends BaseIntegrationTest {
                 .pollInterval(Duration.ofSeconds(1))
                 .untilAsserted(() -> {
                     // Check Database via API
-                    ResponseEntity<PolicyResponse[]> listResponse = restTemplate.exchange(
-                            "/api/v1/policies", HttpMethod.GET,
+                    ResponseEntity<PageResponse<PolicyResponse>> listResponse = restTemplate.exchange(
+                            "/api/v1/policies?page=0&size=20", HttpMethod.GET,
                             new HttpEntity<>(bearerHeaders(jwtToken)),
-                            PolicyResponse[].class);
+                            new ParameterizedTypeReference<>() {});
 
                     assertThat(listResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
-                    assertThat(listResponse.getBody()).isNotEmpty();
-                    assertThat(listResponse.getBody()[0].policyNumber()).isEqualTo("POL-999");
+                    assertThat(listResponse.getBody()).isNotNull();
+                    assertThat(listResponse.getBody().data()).isNotEmpty();
+                    assertThat(listResponse.getBody().data().get(0).policyNumber()).isEqualTo("POL-999");
 
 //                    // Check Metrics
                     double count = meterRegistry.get("insurance.policies.created").counter().count();
