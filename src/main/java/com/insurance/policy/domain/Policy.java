@@ -13,7 +13,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Policy {
+public class Policy extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
