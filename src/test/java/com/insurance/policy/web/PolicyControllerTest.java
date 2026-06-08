@@ -1,5 +1,6 @@
 package com.insurance.policy.web;
 
+import com.insurance.policy.config.AuditConfig;
 import com.insurance.policy.config.JwtAuthenticationFilter;
 import com.insurance.policy.config.SecurityConfig;
 import com.insurance.policy.dtos.PageResponse;
@@ -41,7 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
                 type = FilterType.ASSIGNABLE_TYPE,
                 // Exclude the real SecurityConfig (would add JWT filter to chain)
                 // Exclude JwtAuthenticationFilter (Filter bean picked up by @WebMvcTest)
-                classes = {SecurityConfig.class, JwtAuthenticationFilter.class}
+                classes = {SecurityConfig.class, JwtAuthenticationFilter.class, AuditConfig.class}
         )
 )
 @Import(PolicyControllerTest.TestSecurityConfig.class)
