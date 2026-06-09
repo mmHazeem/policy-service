@@ -27,9 +27,14 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/insurance_db
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=root
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - ZIPKIN_URL=http://zipkin:9411/api/v2/spans
     depends_on:
       postgres:
-        condition: service_healthy # Wait for the healthcheck to pass
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started # Wait for the healthcheck to pass
     restart: always
     networks:
       - monitor-net
@@ -78,6 +83,14 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     networks:
       - "monitor-net"
+
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - monitor-net
 
 networks:
   monitor-net:

@@ -14,6 +14,7 @@ public interface UserMapper {
     @Mapping(target = "password", ignore = true)
     User toEntity(User user);
 
+    @Mapping(target = "uuid", source = "id")
     UserResponse toResponse(User user);
     List<UserResponse> toResponseList(List<User> users);
 }

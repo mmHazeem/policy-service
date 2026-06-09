@@ -7,6 +7,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import org.springframework.data.mapping.PropertyReferenceException;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
@@ -78,6 +79,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleInvalidTransition(InvalidPolicyTransitionException ex) {
         ApiError response = ApiError.builder()
                 .message(ex.getMessage())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .timestamp(LocalDateTime.now())
+                .build();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(PropertyReferenceException.class)
+    public ResponseEntity<ApiError> handlePropertyReference(PropertyReferenceException ex) {
+        ApiError response = ApiError.builder()
+                .message("Invalid sort property: " + ex.getPropertyName())
                 .status(HttpStatus.BAD_REQUEST.value())
                 .timestamp(LocalDateTime.now())
                 .build();
