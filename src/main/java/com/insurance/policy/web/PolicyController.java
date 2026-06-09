@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
@@ -32,7 +33,7 @@ public class PolicyController {
 
     @GetMapping
     @Operation(summary = "Get all policies with pagination")
-    public PageResponse<PolicyResponse> list(@PageableDefault(size = 20) Pageable pageable) {
+    public PageResponse<PolicyResponse> list(@ParameterObject @PageableDefault(size = 20, sort = "id") Pageable pageable) {
         return policyService.getAllPolicies(pageable);
     }
 
