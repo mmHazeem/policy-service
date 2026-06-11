@@ -14,6 +14,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import java.util.List;
 
 @Component
@@ -27,6 +28,7 @@ public class OutboxPublisher {
 
     @Scheduled(fixedDelayString = "${app.outbox.poll-interval:5000}")
     @Transactional
+    @CircuitBreaker(name = "rabbitmq", fallbackMethod = "handleCircuitOpen")
     public void publishPendingEvents() {
         List<OutboxEvent> pendingEvents = outboxRepository.findByStatusOrderByCreatedAtAsc(
                 OutboxEvent.OutboxStatus.PENDING);
@@ -59,5 +61,10 @@ public class OutboxPublisher {
                 outboxRepository.save(event);
             }
         }
+    }
+
+    @SuppressWarnings("unused")
+    private void handleCircuitOpen(Exception e) {
+        log.warn("RabbitMQ circuit breaker is open. Skipping outbox publishing. Cause: {}", e.getMessage());
     }
 }
