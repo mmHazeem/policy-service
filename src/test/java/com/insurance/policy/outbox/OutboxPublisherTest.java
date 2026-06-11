@@ -11,6 +11,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
 import java.util.List;
@@ -121,5 +122,13 @@ class OutboxPublisherTest {
         OutboxEvent saved = eventCaptor.getValue();
         assertEquals(OutboxEvent.OutboxStatus.FAILED, saved.getStatus());
         assertEquals(5, saved.getRetryCount());
+    }
+
+    @Test
+    void shouldHaveCircuitBreakerAnnotationOnPublishMethod() throws Exception {
+        var method = OutboxPublisher.class.getMethod("publishPendingEvents");
+        var annotation = method.getAnnotation(CircuitBreaker.class);
+        assertEquals("rabbitmq", annotation.name());
+        assertEquals("handleCircuitOpen", annotation.fallbackMethod());
     }
 }
