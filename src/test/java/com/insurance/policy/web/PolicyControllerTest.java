@@ -16,6 +16,7 @@ import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -48,6 +49,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import(PolicyControllerTest.TestSecurityConfig.class)
 class PolicyControllerTest {
     @TestConfiguration
+    @EnableMethodSecurity
     static class TestSecurityConfig {
 
         @Bean
@@ -175,7 +177,7 @@ class PolicyControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin")
+    @WithMockUser(username = "admin", roles = "ADMIN")
     void shouldReturn200WhenPatchStatusIsValid() throws Exception {
         mockMvc.perform(patch("/api/v1/policies/{id}/status", "550e8400-e29b-41d4-a716-446655440000")
                         .with(csrf())
@@ -187,7 +189,7 @@ class PolicyControllerTest {
     }
 
     @Test
-    @WithMockUser(username = "admin")
+    @WithMockUser(username = "admin", roles = "ADMIN")
     void shouldReturn400WhenPatchStatusIsNull() throws Exception {
         mockMvc.perform(patch("/api/v1/policies/{id}/status", "550e8400-e29b-41d4-a716-446655440000")
                         .with(csrf())
@@ -196,6 +198,18 @@ class PolicyControllerTest {
                                 {"status": null}
                                 """))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "user", roles = "USER")
+    void shouldReturn403WhenUserPatchesStatus() throws Exception {
+        mockMvc.perform(patch("/api/v1/policies/{id}/status", "550e8400-e29b-41d4-a716-446655440000")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status": "ACTIVE"}
+                                """))
+                .andExpect(status().isForbidden());
     }
 
     @Test
