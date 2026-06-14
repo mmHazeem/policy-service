@@ -2,9 +2,11 @@ package com.insurance.policy.policy_service;
 
 import com.insurance.policy.BaseIntegrationTest;
 import com.insurance.policy.Listener.RabbitMQConfig;
+import com.insurance.policy.domain.Policy;
 import com.insurance.policy.dtos.PageResponse;
 import com.insurance.policy.dtos.PolicyRequest;
 import com.insurance.policy.dtos.PolicyResponse;
+import com.insurance.policy.dtos.PolicyStatusRequest;
 import com.insurance.policy.exception.ApiError;
 import com.insurance.policy.repository.OutboxRepository;
 import com.insurance.policy.repository.PolicyRepository;
@@ -141,5 +143,16 @@ class PolicyIntegrationTest extends BaseIntegrationTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         Assertions.assertNotNull(response.getBody());
         assertThat(response.getBody().getMessage()).isEqualTo("Validation Failed");
+    }
+
+    @Test
+    void shouldReturn403WhenUserUpdatesPolicyStatus() {
+        PolicyStatusRequest request = new PolicyStatusRequest(Policy.PolicyStatus.ACTIVE);
+        HttpEntity<PolicyStatusRequest> entity = new HttpEntity<>(request, bearerHeaders(jwtToken));
+        ResponseEntity<String> response = restTemplate.exchange(
+                "/api/v1/policies/{id}/status", HttpMethod.PATCH,
+                entity, String.class,
+                "550e8400-e29b-41d4-a716-446655440000");
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
     }
 }
