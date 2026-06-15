@@ -34,6 +34,9 @@ public class OutboxEvent {
     @Column(nullable = false)
     private OutboxStatus status;
 
+    @Column(name = "correlation_id", length = 36)
+    private String correlationId;
+
     @Column(name = "retry_count", nullable = false)
     private int retryCount;
 

@@ -8,6 +8,7 @@ import com.insurance.policy.dtos.PolicyRequest;
 import com.insurance.policy.repository.OutboxRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -34,9 +35,14 @@ public class OutboxPublisher {
                 OutboxEvent.OutboxStatus.PENDING);
 
         for (OutboxEvent event : pendingEvents) {
+            MDC.put("correlationId", event.getCorrelationId());
             try {
                 PolicyRequest payload = objectMapper.readValue(event.getPayload(), PolicyRequest.class);
-                rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE, RabbitMQConfig.ROUTING_KEY, payload);
+                rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE, RabbitMQConfig.ROUTING_KEY, payload,
+                        message -> {
+                            message.getMessageProperties().setHeader("correlationId", event.getCorrelationId());
+                            return message;
+                        });
                 event.setStatus(OutboxEvent.OutboxStatus.PUBLISHED);
                 outboxRepository.save(event);
                 log.info("Published outbox event {} of type {}", event.getId(), event.getEventType());
@@ -59,6 +65,8 @@ public class OutboxPublisher {
                     event.setStatus(OutboxEvent.OutboxStatus.FAILED);
                 }
                 outboxRepository.save(event);
+            } finally {
+                MDC.clear();
             }
         }
     }

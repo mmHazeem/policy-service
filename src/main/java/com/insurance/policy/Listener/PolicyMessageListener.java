@@ -6,8 +6,10 @@ import com.insurance.policy.policy_service.PolicyService;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.rabbit.annotation.*;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -18,9 +20,11 @@ public class PolicyMessageListener {
     private final MeterRegistry meterRegistry;
 
     @RabbitListener(queues = RabbitMQConfig.QUEUE, containerFactory = "rabbitListenerContainerFactory")
-    public void handlePolicyCreation(PolicyRequest request) {
-        log.info("Received message for policy number: {}", request.policyNumber());
+    public void handlePolicyCreation(PolicyRequest request,
+                                      @Header("correlationId") String correlationId) {
+        MDC.put("correlationId", correlationId);
         try {
+            log.info("Received message for policy number: {}", request.policyNumber());
             policyService.createPolicy(request);
             meterRegistry.counter("insurance.policy.created", "status", "success").increment();
 
@@ -34,6 +38,8 @@ public class PolicyMessageListener {
                     request.policyNumber(), e.getMessage());
             meterRegistry.counter("insurance.policy.created", "status", "failure").increment();
             throw e;
+        } finally {
+            MDC.clear();
         }
     }
 }

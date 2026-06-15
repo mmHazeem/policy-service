@@ -12,6 +12,7 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import org.springframework.amqp.core.MessagePostProcessor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 
 import java.util.List;
@@ -62,7 +63,7 @@ class OutboxPublisherTest {
 
         outboxPublisher.publishPendingEvents();
 
-        verify(rabbitTemplate).convertAndSend(any(), any(), any(PolicyRequest.class));
+        verify(rabbitTemplate).convertAndSend(any(), any(), any(PolicyRequest.class), any(MessagePostProcessor.class));
         verify(outboxRepository).save(eventCaptor.capture());
         OutboxEvent saved = eventCaptor.getValue();
         assertEquals(OutboxEvent.OutboxStatus.PUBLISHED, saved.getStatus());
@@ -86,7 +87,7 @@ class OutboxPublisherTest {
         when(outboxRepository.findByStatusOrderByCreatedAtAsc(OutboxEvent.OutboxStatus.PENDING))
                 .thenReturn(List.of(pendingEvent));
         doThrow(new RuntimeException("RabbitMQ connection refused"))
-                .when(rabbitTemplate).convertAndSend(any(), any(), any(PolicyRequest.class));
+                .when(rabbitTemplate).convertAndSend(any(), any(), any(PolicyRequest.class), any(MessagePostProcessor.class));
 
         outboxPublisher.publishPendingEvents();
 
@@ -114,7 +115,7 @@ class OutboxPublisherTest {
         when(outboxRepository.findByStatusOrderByCreatedAtAsc(OutboxEvent.OutboxStatus.PENDING))
                 .thenReturn(List.of(pendingEvent));
         doThrow(new RuntimeException("RabbitMQ connection refused"))
-                .when(rabbitTemplate).convertAndSend(any(), any(), any(PolicyRequest.class));
+                .when(rabbitTemplate).convertAndSend(any(), any(), any(PolicyRequest.class), any(MessagePostProcessor.class));
 
         outboxPublisher.publishPendingEvents();
 

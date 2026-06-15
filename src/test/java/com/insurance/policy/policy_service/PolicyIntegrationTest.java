@@ -23,6 +23,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -143,6 +144,21 @@ class PolicyIntegrationTest extends BaseIntegrationTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         Assertions.assertNotNull(response.getBody());
         assertThat(response.getBody().getMessage()).isEqualTo("Validation Failed");
+    }
+
+    @Test
+    void shouldReturnCorrelationIdHeaderOnCreate() {
+        PolicyRequest request = new PolicyRequest(
+                "POL-CID-001", "Correlation Test",
+                new BigDecimal("5000.00"), LocalDate.now());
+
+        ResponseEntity<Void> response = restTemplate.exchange(
+                "/api/v1/policies", HttpMethod.POST,
+                new HttpEntity<>(request, bearerHeaders(jwtToken)),
+                Void.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
+        assertThat(response.getHeaders().containsKey("X-Correlation-Id")).isTrue();
     }
 
     @Test

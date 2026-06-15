@@ -16,6 +16,7 @@ import com.insurance.policy.repository.PolicyRepository;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -66,6 +67,7 @@ public class PolicyService {
                     .aggregateId(request.policyNumber())
                     .eventType("POLICY_CREATED")
                     .payload(payload)
+                    .correlationId(correlationId())
                     .status(OutboxEvent.OutboxStatus.PENDING)
                     .build();
             outboxRepository.save(event);
@@ -127,5 +129,10 @@ public class PolicyService {
 
     private BigDecimal calculatePremium(BigDecimal coverage) {
         return coverage.multiply(new BigDecimal("0.005"));
+    }
+
+    private String correlationId() {
+        String id = MDC.get("correlationId");
+        return id != null ? id : UUID.randomUUID().toString();
     }
 }
