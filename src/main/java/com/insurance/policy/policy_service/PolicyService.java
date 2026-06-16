@@ -115,10 +115,7 @@ public class PolicyService {
 
         Policy savedPolicy = repository.save(policy);
 
-        // Increment the metric every time a policy is successfully saved
-        System.out.println("Incrementing counter...");
         policyCreationCounter.increment();
-        System.out.println("Metric incremented!");
         return mapper.toResponse(savedPolicy);
     }
 

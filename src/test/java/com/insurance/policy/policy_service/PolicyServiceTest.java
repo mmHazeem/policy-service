@@ -24,6 +24,7 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.MDC;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -68,12 +69,24 @@ class PolicyServiceTest {
 
     @Test
     void shouldSavePolicyWithCorrectCalculatedPremium() {
-        when(mapper.toEntity(any())).thenReturn(new Policy());
+        Policy savedEntity = new Policy();
+        savedEntity.setId(UUID.randomUUID());
+        PolicyResponse expectedResponse = new PolicyResponse(
+                savedEntity.getId(), VALID_REQUEST.policyNumber(), VALID_REQUEST.policyHolder(),
+                VALID_REQUEST.coverageAmount(), new BigDecimal("5.000"),
+                VALID_REQUEST.startDate(), "DRAFT");
 
-        policyService.createPolicy(VALID_REQUEST);
+        when(mapper.toEntity(any())).thenReturn(new Policy());
+        when(repository.save(any())).thenReturn(savedEntity);
+        when(mapper.toResponse(savedEntity)).thenReturn(expectedResponse);
+
+        PolicyResponse result = policyService.createPolicy(VALID_REQUEST);
 
         verify(repository).save(policyCaptor.capture());
         assertEquals(new BigDecimal("5.000"), policyCaptor.getValue().getPremiumAmount());
+        assertEquals(Policy.PolicyStatus.DRAFT, policyCaptor.getValue().getStatus());
+        assertNotNull(result);
+        assertEquals(VALID_REQUEST.policyNumber(), result.policyNumber());
     }
 
     @Test
@@ -108,11 +121,18 @@ class PolicyServiceTest {
 
     @Test
     void shouldIncrementCounterWhenPolicyCreated() {
+        PolicyResponse dummyResponse = new PolicyResponse(
+                UUID.randomUUID(), "P-100", "John Doe",
+                new BigDecimal("1000"), new BigDecimal("5"),
+                LocalDate.now(), "DRAFT"
+        );
         when(mapper.toEntity(any())).thenReturn(new Policy());
         when(repository.save(any())).thenReturn(new Policy());
+        when(mapper.toResponse(any())).thenReturn(dummyResponse);
 
-        policyService.createPolicy(VALID_REQUEST);
+        PolicyResponse result = policyService.createPolicy(VALID_REQUEST);
 
+        assertNotNull(result);
         double count = registry.get("insurance.policies.created").counter().count();
         assertEquals(1.0, count);
     }
@@ -129,6 +149,25 @@ class PolicyServiceTest {
         assertEquals(VALID_REQUEST.policyNumber(), saved.getAggregateId());
         assertEquals("POLICY_CREATED", saved.getEventType());
         assertEquals(OutboxEvent.OutboxStatus.PENDING, saved.getStatus());
+        assertNotNull(saved.getCorrelationId());
+        assertTrue(saved.getCorrelationId().matches(
+                "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"));
+    }
+
+    @Test
+    void shouldUseCorrelationIdFromMdcWhenAvailable() {
+        String expectedCorrelationId = "test-correlation-id-456";
+        MDC.put("correlationId", expectedCorrelationId);
+        when(repository.findByPolicyNumber(VALID_REQUEST.policyNumber())).thenReturn(Optional.empty());
+
+        try {
+            policyService.createPolicyAsync(VALID_REQUEST);
+        } finally {
+            MDC.clear();
+        }
+
+        verify(outboxRepository).save(outboxCaptor.capture());
+        assertEquals(expectedCorrelationId, outboxCaptor.getValue().getCorrelationId());
     }
 
     @Test
@@ -213,5 +252,39 @@ class PolicyServiceTest {
         assertEquals(1, result.total());
         assertEquals(1, result.totalPages());
         verify(repository).findAll(pageable);
+    }
+
+    @Test
+    void shouldReturnPolicyWhenFoundById() {
+        UUID id = UUID.randomUUID();
+        Policy policy = new Policy();
+        policy.setId(id);
+        policy.setPolicyNumber("POL-001");
+        policy.setPolicyHolder("John Doe");
+
+        PolicyResponse expected = new PolicyResponse(
+                id, "POL-001", "John Doe",
+                new BigDecimal("1000"), new BigDecimal("5"),
+                LocalDate.now(), "DRAFT");
+
+        when(repository.findById(id)).thenReturn(Optional.of(policy));
+        when(mapper.toResponse(policy)).thenReturn(expected);
+
+        PolicyResponse result = policyService.getPolicyById(id);
+
+        assertEquals(expected, result);
+        verify(repository).findById(id);
+        verify(mapper).toResponse(policy);
+    }
+
+    @Test
+    void shouldThrowWhenPolicyNotFoundById() {
+        UUID id = UUID.randomUUID();
+        when(repository.findById(id)).thenReturn(Optional.empty());
+
+        assertThrows(PolicyNotFoundException.class,
+                () -> policyService.getPolicyById(id));
+        verify(repository).findById(id);
+        verifyNoInteractions(mapper);
     }
 }

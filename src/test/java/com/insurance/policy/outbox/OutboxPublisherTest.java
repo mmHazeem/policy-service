@@ -126,6 +126,30 @@ class OutboxPublisherTest {
     }
 
     @Test
+    void shouldMarkFailedWhenPayloadIsCorrupt() throws Exception {
+        OutboxEvent corruptEvent = OutboxEvent.builder()
+                .id(UUID.randomUUID())
+                .aggregateType("POLICY")
+                .aggregateId("POL-001")
+                .eventType("POLICY_CREATED")
+                .payload("{invalid json}")
+                .status(OutboxEvent.OutboxStatus.PENDING)
+                .retryCount(0)
+                .maxRetries(5)
+                .correlationId(UUID.randomUUID().toString())
+                .build();
+
+        when(outboxRepository.findByStatusOrderByCreatedAtAsc(OutboxEvent.OutboxStatus.PENDING))
+                .thenReturn(List.of(corruptEvent));
+
+        outboxPublisher.publishPendingEvents();
+
+        verify(outboxRepository).save(eventCaptor.capture());
+        OutboxEvent saved = eventCaptor.getValue();
+        assertEquals(OutboxEvent.OutboxStatus.FAILED, saved.getStatus());
+    }
+
+    @Test
     void shouldHaveCircuitBreakerAnnotationOnPublishMethod() throws Exception {
         var method = OutboxPublisher.class.getMethod("publishPendingEvents");
         var annotation = method.getAnnotation(CircuitBreaker.class);
