@@ -205,4 +205,65 @@
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<profile>
+			<id>pitest</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.pitest</groupId>
+						<artifactId>pitest-maven</artifactId>
+						<version>1.19.1</version>
+						<dependencies>
+							<dependency>
+								<groupId>org.pitest</groupId>
+								<artifactId>pitest-junit5-plugin</artifactId>
+								<version>1.2.2</version>
+							</dependency>
+						</dependencies>
+						<configuration>
+							<targetClasses>
+								<param>com.insurance.policy.domain.*</param>
+								<param>com.insurance.policy.policy_service.*</param>
+								<param>com.insurance.policy.exception.*</param>
+								<param>com.insurance.policy.mapper.*</param>
+								<param>com.insurance.policy.outbox.*</param>
+								<param>com.insurance.policy.Listener.*</param>
+							</targetClasses>
+							<targetTests>
+								<param>com.insurance.policy.outbox.*Test</param>
+								<param>com.insurance.policy.web.*Test</param>
+								<param>com.insurance.policy.policy_service.*Test</param>
+								<param>com.insurance.policy.domain.*Test</param>
+								<param>com.insurance.policy.exception.*Test</param>
+								<param>com.insurance.policy.architecture.*Test</param>
+							</targetTests>
+							<excludedClasses>
+								<param>com.insurance.policy.dtos.*</param>
+								<param>com.insurance.policy.config.*</param>
+								<param>com.insurance.policy.repository.*</param>
+								<param>com.insurance.policy.web.*</param>
+								<param>com.insurance.policy.PolicyServiceApplication</param>
+							</excludedClasses>
+							<outputFormats>
+								<param>HTML</param>
+								<param>XML</param>
+							</outputFormats>
+							<mutators>
+								<mutator>DEFAULTS</mutator>
+								<mutator>CONDITIONALS_BOUNDARY</mutator>
+								<mutator>INVERT_NEGS</mutator>
+								<mutator>EMPTY_RETURNS</mutator>
+							</mutators>
+							<threads>4</threads>
+							<timestampedReports>false</timestampedReports>
+							<coverageThreshold>80</coverageThreshold>
+							<mutationThreshold>75</mutationThreshold>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 </project>
