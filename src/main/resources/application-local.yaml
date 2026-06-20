@@ -1,0 +1,5 @@
+aws:
+  s3:
+    endpoint: http://localhost:4566
+    region: eu-central-1
+    bucket: insurance-documents
