@@ -31,7 +31,7 @@ public class Document {
     private String contentType;
 
     @Column(name = "file_size", nullable = false)
-    private Long fileSize;
+    private long fileSize;
 
     @Column(name = "uploaded_at", nullable = false)
     private Instant uploadedAt;

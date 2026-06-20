@@ -26,6 +26,7 @@ class DocumentTest {
         assertEquals(id, doc.getId());
         assertEquals(policy.getId(), doc.getPolicy().getId());
         assertEquals("policy.pdf", doc.getFileName());
+        assertEquals("application/pdf", doc.getContentType());
         assertEquals(1024L, doc.getFileSize());
         assertEquals(now, doc.getUploadedAt());
     }
