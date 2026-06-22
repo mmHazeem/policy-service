@@ -1,5 +1,6 @@
 package com.insurance.policy;
 
+import org.junit.jupiter.api.BeforeAll;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
@@ -9,6 +10,11 @@ import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 
 import static org.testcontainers.containers.localstack.LocalStackContainer.Service.S3;
 
@@ -31,6 +37,19 @@ public abstract class BaseContainerTest {
     static LocalStackContainer localstack =
             new LocalStackContainer(DockerImageName.parse("localstack/localstack:3.0.2"))
                     .withServices(S3);
+
+    @BeforeAll
+    static void createS3Bucket() {
+        try (var s3 = S3Client.builder()
+                .endpointOverride(localstack.getEndpoint())
+                .region(Region.of(localstack.getRegion()))
+                .credentialsProvider(StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create("dummy", "dummy")))
+                .forcePathStyle(true)
+                .build()) {
+            s3.createBucket(CreateBucketRequest.builder().bucket("insurance-documents").build());
+        }
+    }
 
     @DynamicPropertySource
     static void overrideProperties(DynamicPropertyRegistry registry) {

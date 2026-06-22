@@ -64,7 +64,7 @@ class DocumentIntegrationTest extends BaseIntegrationTest {
         var file = new MockMultipartFile("file", "doc.pdf",
                 "application/pdf", "data".getBytes());
 
-        var token = obtainToken("user");
+        var token = obtainToken("user2");
         mockMvc.perform(multipart("/api/v1/policies/{policyId}/documents", policy.getId())
                         .file(file)
                         .header("Authorization", "Bearer " + token))
