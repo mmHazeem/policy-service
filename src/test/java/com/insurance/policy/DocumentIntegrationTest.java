@@ -11,7 +11,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -28,15 +27,14 @@ class DocumentIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void shouldUploadDocumentToPolicy() throws Exception {
-        var policy = new Policy();
-        policy.setId(UUID.randomUUID());
-        policy.setPolicyNumber("DOC-INT-001");
-        policy.setPolicyHolder("Test Holder");
-        policy.setCoverageAmount(new BigDecimal("100000"));
-        policy.setPremiumAmount(new BigDecimal("500"));
-        policy.setStartDate(LocalDate.now());
-        policy.setStatus(Policy.PolicyStatus.DRAFT);
-        policyRepository.save(policy);
+        var policy = policyRepository.save(Policy.builder()
+                .policyNumber("DOC-INT-001")
+                .policyHolder("Test Holder")
+                .coverageAmount(new BigDecimal("100000"))
+                .premiumAmount(new BigDecimal("500"))
+                .startDate(LocalDate.now())
+                .status(Policy.PolicyStatus.DRAFT)
+                .build());
 
         var file = new MockMultipartFile("file", "report.pdf",
                 "application/pdf", "pdf content".getBytes());
@@ -54,15 +52,14 @@ class DocumentIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void shouldReturnDocumentsForPolicy() throws Exception {
-        var policy = new Policy();
-        policy.setId(UUID.randomUUID());
-        policy.setPolicyNumber("DOC-INT-002");
-        policy.setPolicyHolder("Test Holder");
-        policy.setCoverageAmount(new BigDecimal("100000"));
-        policy.setPremiumAmount(new BigDecimal("500"));
-        policy.setStartDate(LocalDate.now());
-        policy.setStatus(Policy.PolicyStatus.DRAFT);
-        policyRepository.save(policy);
+        var policy = policyRepository.save(Policy.builder()
+                .policyNumber("DOC-INT-002")
+                .policyHolder("Test Holder")
+                .coverageAmount(new BigDecimal("100000"))
+                .premiumAmount(new BigDecimal("500"))
+                .startDate(LocalDate.now())
+                .status(Policy.PolicyStatus.DRAFT)
+                .build());
 
         var file = new MockMultipartFile("file", "doc.pdf",
                 "application/pdf", "data".getBytes());
