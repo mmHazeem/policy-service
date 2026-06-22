@@ -92,6 +92,18 @@ services:
     networks:
       - monitor-net
 
+  localstack:
+    image: localstack/localstack:3.0.0
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: secretsmanager,sqs,cloudwatch,s3
+      AWS_DEFAULT_REGION: eu-central-1
+    volumes:
+      - "./localstack/init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh"
+    networks:
+      - monitor-net
+
 networks:
   monitor-net:
     driver: bridge
