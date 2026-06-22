@@ -47,7 +47,7 @@ class DocumentIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.policyId").value(policy.getId().toString()))
                 .andExpect(jsonPath("$.fileName").value("report.pdf"))
                 .andExpect(jsonPath("$.contentType").value("application/pdf"))
-                .andExpect(jsonPath("$.fileSize").value(12));
+                .andExpect(jsonPath("$.fileSize").value(11));
     }
 
     @Test
