@@ -7,6 +7,8 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.S3Configuration;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 import java.net.URI;
 
@@ -30,6 +32,20 @@ public class AwsConfig {
                    .credentialsProvider(StaticCredentialsProvider.create(
                            AwsBasicCredentials.create("dummy", "dummy")))
                    .forcePathStyle(true);
+        }
+        return builder.build();
+    }
+
+    @Bean
+    public S3Presigner s3Presigner() {
+        var builder = S3Presigner.builder().region(Region.of(region));
+        if (endpoint != null) {
+            builder.endpointOverride(URI.create(endpoint))
+                   .credentialsProvider(StaticCredentialsProvider.create(
+                           AwsBasicCredentials.create("dummy", "dummy")))
+                   .serviceConfiguration(S3Configuration.builder()
+                           .pathStyleAccessEnabled(true)
+                           .build());
         }
         return builder.build();
     }
