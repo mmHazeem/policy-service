@@ -4,6 +4,7 @@ import com.insurance.policy.config.AuditConfig;
 import com.insurance.policy.config.JwtAuthenticationFilter;
 import com.insurance.policy.config.SecurityConfig;
 import com.insurance.policy.dtos.DocumentResponse;
+import com.insurance.policy.exception.DocumentNotFoundException;
 import com.insurance.policy.service.DocumentService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -108,5 +109,34 @@ class DocumentControllerTest {
 
         mockMvc.perform(multipart("/api/v1/policies/{policyId}/documents", policyId))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "user", roles = "USER")
+    void shouldReturnPresignedUrlForDownload() throws Exception {
+        var docId = UUID.randomUUID();
+        when(documentService.getDownloadUrl(docId))
+                .thenReturn("https://s3.example.com/doc.pdf?X-Amz-Signature=abc");
+
+        mockMvc.perform(get("/api/v1/documents/{documentId}/download", docId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.url").value("https://s3.example.com/doc.pdf?X-Amz-Signature=abc"));
+    }
+
+    @Test
+    @WithMockUser(username = "user", roles = "USER")
+    void shouldReturn404WhenDocumentNotFoundForDownload() throws Exception {
+        var docId = UUID.randomUUID();
+        when(documentService.getDownloadUrl(docId))
+                .thenThrow(new DocumentNotFoundException(docId));
+
+        mockMvc.perform(get("/api/v1/documents/{documentId}/download", docId))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldReturn401WhenNotAuthenticatedForDownload() throws Exception {
+        mockMvc.perform(get("/api/v1/documents/{documentId}/download", UUID.randomUUID()))
+                .andExpect(status().isUnauthorized());
     }
 }

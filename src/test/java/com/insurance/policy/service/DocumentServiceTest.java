@@ -18,7 +18,14 @@ import org.springframework.mock.web.MockMultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
+
+import java.net.URI;
+import java.net.URL;
 
 import java.time.Instant;
 import java.util.List;
@@ -40,6 +47,9 @@ class DocumentServiceTest {
 
     @Mock
     private S3Client s3Client;
+
+    @Mock
+    private S3Presigner s3Presigner;
 
     @InjectMocks
     private DocumentService documentService;
@@ -72,7 +82,7 @@ class DocumentServiceTest {
     @Test
     void shouldThrowPolicyNotFoundExceptionWhenPolicyDoesNotExist() {
         var policyId = UUID.randomUUID();
-        var file = new MockMultipartFile("file", "test.txt", "text/plain", "data".getBytes());
+        var file = new MockMultipartFile("file", "test.pdf", "application/pdf", "data".getBytes());
 
         when(policyRepository.findById(policyId)).thenReturn(Optional.empty());
 
@@ -86,7 +96,7 @@ class DocumentServiceTest {
         var policyId = UUID.randomUUID();
         var policy = new Policy();
         policy.setId(policyId);
-        var file = new MockMultipartFile("file", "test.txt", "text/plain", "data".getBytes());
+        var file = new MockMultipartFile("file", "test.pdf", "application/pdf", "data".getBytes());
 
         when(policyRepository.findById(policyId)).thenReturn(Optional.of(policy));
         when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
@@ -170,5 +180,42 @@ class DocumentServiceTest {
         assertThrows(DocumentNotFoundException.class, () -> documentService.deleteDocument(docId));
         verify(s3Client, never()).deleteObject(any(DeleteObjectRequest.class));
         verify(documentRepository, never()).delete(any());
+    }
+
+    @Test
+    void shouldReturnPresignedUrlForDownload() throws Exception {
+        var docId = UUID.randomUUID();
+        var policy = new Policy();
+        policy.setId(UUID.randomUUID());
+        var doc = Document.builder()
+                .id(docId)
+                .policy(policy)
+                .fileName("a.pdf")
+                .s3Key("policies/key")
+                .contentType("pdf")
+                .fileSize(100L)
+                .uploadedAt(Instant.now())
+                .build();
+
+        when(documentRepository.findById(docId)).thenReturn(Optional.of(doc));
+        var presigned = mock(PresignedGetObjectRequest.class);
+        when(presigned.url()).thenReturn(new URI("https://s3.example.com/file").toURL());
+        when(s3Presigner.presignGetObject(any(GetObjectPresignRequest.class)))
+                .thenReturn(presigned);
+
+        var url = documentService.getDownloadUrl(docId);
+
+        assertEquals("https://s3.example.com/file", url);
+        verify(s3Presigner).presignGetObject(any(GetObjectPresignRequest.class));
+    }
+
+    @Test
+    void shouldThrowDocumentNotFoundExceptionWhenDownloadingNonExistent() {
+        var docId = UUID.randomUUID();
+        when(documentRepository.findById(docId)).thenReturn(Optional.empty());
+
+        assertThrows(DocumentNotFoundException.class,
+                () -> documentService.getDownloadUrl(docId));
+        verify(s3Presigner, never()).presignGetObject(any(GetObjectPresignRequest.class));
     }
 }
