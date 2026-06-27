@@ -10,6 +10,9 @@
 | Run app (local) | `./mvnw spring-boot:run -Dspring-boot.run.profiles=local` (starts on port 8081) |
 | Run app (docker) | `./mvnw spring-boot:run -Dspring-boot.run.profiles=docker` |
 | Start infra | `docker compose up -d` (Postgres, RabbitMQ, Redis, LocalStack, Prometheus, Grafana) |
+| Terraform plan | `cd infra/terraform && terraform plan` |
+| Terraform apply | `cd infra/terraform && terraform apply` |
+| Terraform destroy | `cd infra/terraform && terraform destroy` |
 
 Testcontainers auto-provisions Postgres/RabbitMQ/Redis/LocalStack — no manual setup. CI sets `TESTCONTAINERS_CHECKS_DISABLE=true` and `JWT_SECRET`.
 

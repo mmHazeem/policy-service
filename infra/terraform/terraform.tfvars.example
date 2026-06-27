@@ -1,0 +1,11 @@
+aws_region        = "eu-central-1"
+environment       = "production"
+ec2_instance_type = "t3.micro"
+ec2_ami_id        = "ami-0e4031c41e1f7833f"  # Amazon Linux 2023, eu-central-1
+ec2_ssh_key_name  = null                      # Use SSM Session Manager instead
+allowed_cidr_blocks = ["0.0.0.0/0"]          # Restrict in production!
+
+# Managed services (set to null if not using)
+# rabbitmq_host = "your-mq-broker.url"
+# redis_host    = "your-redis-endpoint"
+# zipkin_url    = "http://zipkin:9411"
