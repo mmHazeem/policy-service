@@ -2,15 +2,18 @@ package com.insurance.policy;
 
 import com.insurance.policy.domain.Policy;
 import com.insurance.policy.repository.PolicyRepository;
+import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -74,5 +77,36 @@ class DocumentIntegrationTest extends BaseIntegrationTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void shouldDownloadDocumentWithPresignedUrl() throws Exception {
+        var policy = policyRepository.save(Policy.builder()
+                .policyNumber("DOC-INT-003")
+                .policyHolder("Test Holder")
+                .coverageAmount(new BigDecimal("100000"))
+                .premiumAmount(new BigDecimal("500"))
+                .startDate(LocalDate.now())
+                .status(Policy.PolicyStatus.DRAFT)
+                .build());
+
+        var file = new MockMultipartFile("file", "report.pdf",
+                "application/pdf", "pdf content".getBytes());
+
+        var token = obtainToken("user3");
+        MvcResult uploadResult = mockMvc.perform(
+                        multipart("/api/v1/policies/{policyId}/documents", policy.getId())
+                                .file(file)
+                                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        var docId = UUID.fromString(JsonPath.read(uploadResult.getResponse().getContentAsString(), "$.id"));
+
+        mockMvc.perform(get("/api/v1/documents/{documentId}/download", docId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.url").isString())
+                .andExpect(jsonPath("$.url").value(org.hamcrest.Matchers.startsWith("http")));
     }
 }

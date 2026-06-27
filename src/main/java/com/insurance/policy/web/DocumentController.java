@@ -1,5 +1,6 @@
 package com.insurance.policy.web;
 
+import com.insurance.policy.dtos.DocumentDownloadResponse;
 import com.insurance.policy.dtos.DocumentResponse;
 import com.insurance.policy.service.DocumentService;
 import org.springframework.http.HttpStatus;
@@ -37,6 +38,14 @@ public class DocumentController {
     public ResponseEntity<List<DocumentResponse>> getDocuments(
             @PathVariable UUID policyId) {
         return ResponseEntity.ok(documentService.getDocuments(policyId));
+    }
+
+    @GetMapping("/documents/{documentId}/download")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<DocumentDownloadResponse> downloadDocument(
+            @PathVariable UUID documentId) {
+        var url = documentService.getDownloadUrl(documentId);
+        return ResponseEntity.ok(new DocumentDownloadResponse(url));
     }
 
     @DeleteMapping("/documents/{documentId}")
